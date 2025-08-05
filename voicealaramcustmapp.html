@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Purpose Alarm Clock</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .alarm-item {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl max-w-lg w-full text-center border-t-4 border-indigo-500">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Multi-Purpose Alarm</h1>
+        <p class="text-gray-500 mb-6">Set and manage alarms for different daily activities.</p>
+
+        <!-- Current Time Display -->
+        <div id="currentTime" class="text-4xl sm:text-5xl font-extrabold text-indigo-600 mb-6 tracking-wide">
+            --:--:--
+        </div>
+
+        <!-- User Options (Voice and Message) -->
+        <div class="space-y-4 mb-6">
+            <!-- Voice Selector -->
+            <div class="text-left">
+                <label for="voiceSelector" class="text-sm font-medium text-gray-700">Select Voice:</label>
+                <select id="voiceSelector" class="mt-1 w-full p-3 rounded-xl border-2 border-gray-300 focus:border-indigo-500 outline-none transition-all duration-300">
+                    <option value="Kore">Female Boss (Firm)</option>
+                    <option value="Orus">Male (Firm)</option>
+                    <option value="Puck">Male (Upbeat)</option>
+                    <option value="Charon">Female (Informative)</option>
+                </select>
+            </div>
+            <!-- Custom Message Input -->
+            <div class="text-left">
+                <label for="messageInput" class="text-sm font-medium text-gray-700">Custom Message:</label>
+                <input
+                    type="text"
+                    id="messageInput"
+                    class="mt-1 w-full p-3 rounded-xl border-2 border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all duration-300 outline-none"
+                    placeholder="Enter your message or leave blank for default"
+                />
+            </div>
+        </div>
+
+        <!-- Alarm Type and Time Picker -->
+        <div class="flex flex-col sm:flex-row gap-4 mb-6">
+            <div class="w-full sm:w-1/2 text-left">
+                <label for="alarmTypeSelector" class="text-sm font-medium text-gray-700">Alarm Type:</label>
+                <select id="alarmTypeSelector" class="mt-1 w-full p-3 rounded-xl border-2 border-gray-300 focus:border-indigo-500 outline-none transition-all duration-300">
+                    <option value="wake-up">Wake Up</option>
+                    <option value="drink-water">Drink Water</option>
+                    <option value="eat-food">Eat Food</option>
+                    <option value="read-book">Read Book</option>
+                    <option value="sleep">Sleep</option>
+                    <option value="meditation">Meditation</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+            <div class="w-full sm:w-1/2 text-left">
+                <label for="alarmTimeInput" class="text-sm font-medium text-gray-700">Alarm Time:</label>
+                <input
+                    type="time"
+                    id="alarmTimeInput"
+                    class="mt-1 w-full p-3 text-center rounded-xl border-2 border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all duration-300 outline-none"
+                />
+            </div>
+        </div>
+
+        <!-- Custom Alarm Name Input - hidden by default -->
+        <div id="customAlarmNameContainer" class="text-left mb-6" style="display: none;">
+            <label for="customAlarmNameInput" class="text-sm font-medium text-gray-700">Custom Alarm Name:</label>
+            <input
+                type="text"
+                id="customAlarmNameInput"
+                class="mt-1 w-full p-3 rounded-xl border-2 border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all duration-300 outline-none"
+                placeholder="e.g., Take Medicine"
+            />
+        </div>
+
+        <!-- Set Alarm Button -->
+        <button
+            id="setAlarmButton"
+            class="w-full bg-indigo-600 text-white py-3 px-6 rounded-xl text-lg font-semibold shadow-lg hover:bg-indigo-700 transition-all duration-300 transform hover:scale-105 mb-6"
+        >
+            Set Alarm
+        </button>
+
+        <!-- Active Alarms Display -->
+        <div id="activeAlarmsContainer" class="text-left">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Active Alarms</h3>
+            <div id="activeAlarmsList" class="space-y-3">
+                <!-- Alarm items will be dynamically added here -->
+                <p id="noAlarmsMessage" class="text-gray-500">No alarms set yet.</p>
+            </div>
+        </div>
+
+        <!-- Status Message and Loading Indicator -->
+        <div id="statusMessage" class="mt-6 text-md font-medium text-gray-600">
+            Select an alarm type, time, and click 'Set Alarm'.
+        </div>
+        <div id="loadingIndicator" style="display: none;" class="mt-4 flex justify-center items-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+            <span class="ml-3 text-indigo-500">Generating voice...</span>
+        </div>
+    </div>
+
+    <script>
+        // Set the API key for the generative model. This is left empty as it's provided by the environment.
+        const apiKey = "";
+        
+        // --- DOM Elements ---
+        const alarmTimeInput = document.getElementById('alarmTimeInput');
+        const alarmTypeSelector = document.getElementById('alarmTypeSelector');
+        const setAlarmButton = document.getElementById('setAlarmButton');
+        const currentTimeDisplay = document.getElementById('currentTime');
+        const statusMessage = document.getElementById('statusMessage');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const voiceSelector = document.getElementById('voiceSelector');
+        const messageInput = document.getElementById('messageInput');
+        const activeAlarmsList = document.getElementById('activeAlarmsList');
+        const noAlarmsMessage = document.getElementById('noAlarmsMessage');
+        const customAlarmNameContainer = document.getElementById('customAlarmNameContainer');
+        const customAlarmNameInput = document.getElementById('customAlarmNameInput');
+
+
+        // --- Global Variables ---
+        let alarmInterval = null;
+        let audio = null;
+        let alarms = {}; // Use an object to store multiple alarms: { 'type': { time: 'HH:MM', message: '...' } }
+        let currentRingingAlarm = null; // Track which alarm is currently ringing
+
+        // --- Utility Functions ---
+
+        /**
+         * Converts a Base64 string to an ArrayBuffer.
+         * @param {string} base64 The Base64 string to decode.
+         * @returns {ArrayBuffer} The decoded ArrayBuffer.
+         */
+        const base64ToArrayBuffer = (base64) => {
+            const binaryString = window.atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        };
+
+        /**
+         * Converts PCM audio data to a WAV Blob.
+         * @param {Int16Array} pcmData The PCM 16-bit audio data.
+         * @param {number} sampleRate The sample rate of the audio.
+         * @returns {Blob} The WAV audio Blob.
+         */
+        const pcmToWav = (pcmData, sampleRate) => {
+            const buffer = new ArrayBuffer(44 + pcmData.length * 2);
+            const view = new DataView(buffer);
+
+            // WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + pcmData.length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // Audio format (1 = PCM)
+            view.setUint16(22, 1, true); // Number of channels
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true); // Byte rate
+            view.setUint16(32, 2, true); // Block align
+            view.setUint16(34, 16, true); // Bits per sample
+            writeString(view, 36, 'data');
+            view.setUint32(40, pcmData.length * 2, true);
+
+            let offset = 44;
+            for (let i = 0; i < pcmData.length; i++, offset += 2) {
+                view.setInt16(offset, pcmData[i], true);
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        };
+
+        /**
+         * Writes a string to a DataView.
+         * @param {DataView} view The DataView to write to.
+         * @param {number} offset The offset to start writing at.
+         * @param {string} string The string to write.
+         */
+        const writeString = (view, offset, string) => {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        };
+        
+        /**
+         * Generates a default message based on the alarm type.
+         * @param {string} type The alarm type.
+         * @param {string} [customName] The custom name for the alarm.
+         * @returns {string} The default message.
+         */
+        const getDefaultMessage = (type, customName = '') => {
+            switch(type) {
+                case 'wake-up': return "Time to wake up.";
+                case 'drink-water': return "Time to drink some water.";
+                case 'eat-food': return "Time to eat your food.";
+                case 'read-book': return "Time to read your book.";
+                case 'sleep': return "Time to go to sleep.";
+                case 'meditation': return "Time for your meditation.";
+                case 'custom': return `Time for ${customName}.`;
+                default: return "Attention, an alarm has been triggered.";
+            }
+        };
+
+        // --- TTS and Alarm Logic ---
+
+        /**
+         * Fetches and plays the TTS audio for a specific message.
+         * @param {string} message The message to be spoken.
+         */
+        const playAlarmSound = async (message) => {
+            statusMessage.textContent = 'Alarm ringing...';
+            loadingIndicator.style.display = 'flex';
+
+            const selectedVoiceName = voiceSelector.value;
+            const textToSpeak = `Say at a slightly faster pace: ${message}`;
+            
+            const payload = {
+                contents: [{
+                    parts: [{ text: textToSpeak }]
+                }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: selectedVoiceName }
+                        }
+                    }
+                },
+                model: "gemini-2.5-flash-preview-tts"
+            };
+            
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+            let audioUrl = null;
+            const maxRetries = 5;
+            let currentRetry = 0;
+            
+            while (currentRetry < maxRetries) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    // Check for valid response structure more defensively
+                    if (!result || !result.candidates || result.candidates.length === 0) {
+                        console.error('Invalid API response structure:', result);
+                        throw new Error('Invalid API response structure.');
+                    }
+
+                    const part = result.candidates[0].content?.parts?.[0];
+                    if (!part?.inlineData?.data || !part?.inlineData?.mimeType) {
+                        console.error('Missing audio data in API response:', part);
+                        throw new Error('Missing audio data in API response.');
+                    }
+                    
+                    const audioData = part.inlineData.data;
+                    const mimeType = part.inlineData.mimeType;
+
+                    const mimeTypeMatch = mimeType.match(/rate=(\d+)/);
+                    if (mimeTypeMatch) {
+                        const sampleRate = parseInt(mimeTypeMatch[1], 10);
+                        const pcmData = base64ToArrayBuffer(audioData);
+                        const pcm16 = new Int16Array(pcmData);
+                        const wavBlob = pcmToWav(pcm16, sampleRate);
+                        audioUrl = URL.createObjectURL(wavBlob);
+                        break; // Exit the loop on success
+                    } else {
+                        throw new Error('Could not parse sample rate from audio data.');
+                    }
+                } catch (error) {
+                    console.error(`API call failed (Retry ${currentRetry + 1}/${maxRetries}):`, error);
+                    currentRetry++;
+                    if (currentRetry < maxRetries) {
+                        const delay = Math.pow(2, currentRetry) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+            }
+            
+            loadingIndicator.style.display = 'none';
+            
+            if (audioUrl) {
+                if (audio) {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }
+                
+                audio = new Audio(audioUrl);
+                audio.loop = true;
+                audio.play();
+                statusMessage.textContent = `Alarm "${currentRingingAlarm}" is ringing!`;
+            } else {
+                statusMessage.textContent = 'Error: Could not generate alarm voice after multiple retries.';
+            }
+        };
+
+        /**
+         * Checks the current time against all set alarms.
+         */
+        const checkAlarms = () => {
+            const now = new Date();
+            const currentHours = now.getHours().toString().padStart(2, '0');
+            const currentMinutes = now.getMinutes().toString().padStart(2, '0');
+            const currentTimeString = `${currentHours}:${currentMinutes}`;
+            
+            for (const type in alarms) {
+                if (alarms[type] && alarms[type].time === currentTimeString) {
+                    // Prevent multiple alarms from ringing at the exact same time
+                    if (currentRingingAlarm) {
+                        return;
+                    }
+                    currentRingingAlarm = type;
+                    playAlarmSound(alarms[type].message);
+                }
+            }
+        };
+
+        /**
+         * Renders the list of active alarms on the UI.
+         */
+        const renderAlarms = () => {
+            activeAlarmsList.innerHTML = '';
+            const alarmTypes = Object.keys(alarms);
+            
+            if (alarmTypes.length === 0) {
+                noAlarmsMessage.style.display = 'block';
+            } else {
+                noAlarmsMessage.style.display = 'none';
+                alarmTypes.forEach(type => {
+                    const alarm = alarms[type];
+                    const formattedType = type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                    const alarmElement = document.createElement('div');
+                    alarmElement.className = 'flex items-center justify-between p-3 bg-gray-100 rounded-xl alarm-item';
+                    alarmElement.innerHTML = `
+                        <div class="flex-1 text-gray-800">
+                            <span class="font-semibold">${formattedType}</span> at <span class="font-mono">${alarm.time}</span>
+                        </div>
+                        <button class="stop-individual-alarm bg-red-500 text-white p-2 rounded-lg text-sm font-semibold hover:bg-red-600 transition-all duration-300 transform hover:scale-105" data-type="${type}">
+                            Stop
+                        </button>
+                    `;
+                    activeAlarmsList.appendChild(alarmElement);
+                });
+            }
+        };
+
+        /**
+         * Sets an alarm based on user input.
+         */
+        const setAlarm = () => {
+            const timeValue = alarmTimeInput.value;
+            let typeValue = alarmTypeSelector.value;
+            
+            // Check if the type is "custom" and get the name from the new input field
+            if (typeValue === 'custom') {
+                const customName = customAlarmNameInput.value.trim();
+                if (!customName) {
+                    statusMessage.textContent = 'Please enter a name for your custom alarm.';
+                    return;
+                }
+                typeValue = customName;
+            }
+
+            const customMessage = messageInput.value.trim();
+            const message = customMessage || getDefaultMessage(typeValue, typeValue);
+            
+            if (timeValue) {
+                alarms[typeValue] = { time: timeValue, message: message };
+                statusMessage.textContent = `Alarm for "${typeValue}" set for ${timeValue}.`;
+                renderAlarms(); // Update the UI list
+                
+                // Clear the message input for the next alarm
+                messageInput.value = '';
+                customAlarmNameInput.value = '';
+
+                // If no interval is running, start one.
+                if (!alarmInterval) {
+                    alarmInterval = setInterval(checkAlarms, 1000);
+                }
+            } else {
+                statusMessage.textContent = 'Please select a valid time.';
+            }
+        };
+
+        /**
+         * Stops an individual alarm and resets the state if no others are running.
+         * @param {string} type The type of alarm to stop.
+         */
+        const stopAlarm = (type) => {
+            if (alarms[type]) {
+                delete alarms[type];
+                statusMessage.textContent = `Alarm "${type}" stopped.`;
+                renderAlarms();
+
+                if (Object.keys(alarms).length === 0) {
+                    // All alarms are stopped, so clear the interval and audio
+                    if (alarmInterval) {
+                        clearInterval(alarmInterval);
+                        alarmInterval = null;
+                    }
+                    if (audio) {
+                        audio.pause();
+                        audio.currentTime = 0;
+                        audio = null;
+                    }
+                    statusMessage.textContent = 'All alarms stopped. Select a new time.';
+                }
+
+                // If the alarm we just stopped was the one ringing, stop the audio.
+                if (currentRingingAlarm === type) {
+                    if (audio) {
+                        audio.pause();
+                        audio.currentTime = 0;
+                        audio = null;
+                    }
+                    currentRingingAlarm = null;
+                }
+            }
+        };
+
+        // --- Event Listeners ---
+        setAlarmButton.addEventListener('click', setAlarm);
+        activeAlarmsList.addEventListener('click', (event) => {
+            if (event.target.classList.contains('stop-individual-alarm')) {
+                const alarmType = event.target.dataset.type;
+                stopAlarm(alarmType);
+            }
+        });
+        alarmTypeSelector.addEventListener('change', () => {
+            if (alarmTypeSelector.value === 'custom') {
+                customAlarmNameContainer.style.display = 'block';
+            } else {
+                customAlarmNameContainer.style.display = 'none';
+            }
+        });
+
+
+        // --- Initial Setup ---
+        /**
+         * Updates the current time display.
+         */
+        const updateCurrentTime = () => {
+            const now = new Date();
+            const options = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            currentTimeDisplay.textContent = now.toLocaleTimeString('en-US', options);
+        };
+        setInterval(updateCurrentTime, 1000);
+        updateCurrentTime();
+    </script>
+</body>
+</html>
